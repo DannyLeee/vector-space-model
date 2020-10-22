@@ -47,39 +47,45 @@ for txt in tqdm(file_iter()):
     list_tf += [Counter(txt.split())]
 
 #%%
+# list of dict to dataframe
 timestamp()
 df_tf = pd.DataFrame(list_tf)
+df_q_tf = df_tf[:len(q_list)]
+df_d_tf = df_tf[len(q_list):]
+del df_tf
 timestamp()
 
 #%%
 #idf
-df_idf = pd.DataFrame([np.log(1+(len(df_tf)+1) / (df_tf.count()+1))], index=['idf'])
+df_idf = pd.DataFrame([1+np.log((len(df_d_tf)+1) / (df_d_tf.count()+1))], index=['idf'])
 
 #%%
-df_tf.insert(0, column='txt_id', value=q_list+d_list)
-df_tf = df_tf.set_index('txt_id')
-df_tf = df_tf.fillna(0)
+df_q_tf.insert(0, column='txt_id', value=q_list)
+df_d_tf.insert(0, column='txt_id', value=d_list)
+df_q_tf = df_q_tf.set_index('txt_id')
+df_q_tf = df_q_tf.fillna(0)
+df_d_tf = df_d_tf.set_index('txt_id')
+df_d_tf = df_d_tf.fillna(0)
 print('\n')
-print(df_tf.shape)
+print(df_q_tf.shape)
+print(df_d_tf.shape)
 print(df_idf.shape)
 
 #%%
 # np_tfidf
 timestamp()
-np_tf = np.array(df_tf)
+np_q_tf = np.array(df_q_tf)
+np_d_tf = np.array(df_d_tf)
 np_idf = np.array(df_idf)
 # np_tfidf = (1+np.log(np_tf)) * np_idf
-np_tfidf = np_tf * np_idf
+np_q_tfidf = np_q_tf * np_idf
+np_d_tfidf = np_d_tf * np_idf
 timestamp()
-np_tfidf
-
-#%%
-df_tfidf.to_csv('tfidf.csv')
 
 #%%
 # sim_array
 timestamp()
-sim_array = cosine_similarity(np_tfidf[:len(q_list)], np_tf[len(q_list):])
+sim_array = cosine_similarity(np_q_tfidf, np_d_tfidf)
 sim_array = np.array(sim_array)
 timestamp()
 sim_array
