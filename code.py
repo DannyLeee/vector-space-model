@@ -3,6 +3,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 import numpy as np
+from collections import Counter
+from tqdm import tqdm
 
 #%%
 doc_path = "./data/docs/"
@@ -23,6 +25,13 @@ with open('./data/query_list.txt', 'r') as q_list_file:
         q_list += [line]
 
 #%%
+from datetime import datetime,timezone,timedelta
+def timestamp():
+    dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
+    dt2 = dt1.astimezone(timezone(timedelta(hours=8))) # 轉換時區 -> 東八區
+    print(dt2)
+
+#%%
 def file_iter():
     for name in q_list:
         with open(query_path+name+'.txt') as f:
@@ -31,20 +40,66 @@ def file_iter():
         with open(doc_path+name+'.txt') as f:
             yield f.readline()
 
-vectorizer = TfidfVectorizer(sublinear_tf=False, stop_words=None, token_pattern="(?u)\\b\\w+\\b", smooth_idf=True, norm='l2')
-tfidf = vectorizer.fit_transform(file_iter())    # input string of list
-tfidf = tfidf.toarray()
+#%%
+doc_list = []
+list_tf = []
+for txt in tqdm(file_iter()):
+    list_tf += [Counter(txt.split())]
 
 #%%
-df_q = pd.DataFrame(tfidf[ : len(q_list)],columns=vectorizer.get_feature_names(), index=q_list)
-df_d = pd.DataFrame(tfidf[len(q_list) : ],columns=vectorizer.get_feature_names(), index=d_list)
-
+timestamp()
+df_tf = pd.DataFrame(list_tf)
+timestamp()
 
 #%%
-sim_array = cosine_similarity(df_q.loc[q_list], df_d.loc[d_list])
+#idf
+df_idf = pd.DataFrame([np.log(1+(len(df_tf)+1) / (df_tf.count()+1))], index=['idf'])
+
+#%%
+df_tf.insert(0, column='txt_id', value=q_list+d_list)
+df_tf = df_tf.set_index('txt_id')
+df_tf = df_tf.fillna(0)
+print('\n')
+print(df_tf.shape)
+print(df_idf.shape)
+
+#%%
+# np_tfidf
+timestamp()
+np_tf = np.array(df_tf)
+np_idf = np.array(df_idf)
+# np_tfidf = (1+np.log(np_tf)) * np_idf
+np_tfidf = np_tf * np_idf
+timestamp()
+np_tfidf
+
+#%%
+df_tfidf.to_csv('tfidf.csv')
+
+#%%
+# sim_array
+timestamp()
+sim_array = cosine_similarity(np_tfidf[:len(q_list)], np_tf[len(q_list):])
 sim_array = np.array(sim_array)
+timestamp()
+sim_array
+
+#%%###########################
+vectorizer = TfidfVectorizer(sublinear_tf=True, stop_words=None, token_pattern="(?u)\\b\\w+\\b", smooth_idf=True, norm='l2')
+tfidf = vectorizer.fit_transform(file_iter())    # input string of list
 
 #%%
+np_tfidf[51]
+
+#%%
+tfidf[51].toarray()
+
+#%%
+sim_array = cosine_similarity(tfidf[:len(q_list)], tfidf[len(q_list):])
+sim_array = np.array(sim_array)
+sim_array
+
+#%%!!!!!!!!!!!!!!!!!!!!!!!!!
 with open('result.csv', 'w') as output_file:
     output_file.write("Query,RetrievedDocuments\n")
     for i, q_id in tqdm(enumerate(q_list)):
@@ -55,43 +110,3 @@ with open('result.csv', 'w') as output_file:
             output_file.write(d_list[j]+' ')
         output_file.write('\n')
         # break
-
-#%%=========================================
-t = cosine_similarity(df_q.loc[['301','302','303']], df_d.loc[['FBIS4-68801', 'FBIS3-23986']])
-t[0][0]
-
-#%%
-df_d.loc['FBIS4-68801']
-
-#%%
-cosine_similarity([df_q.loc['301']], [df_d.loc['FBIS4-68801']])
-
-#%%
-d1 = 'a b d e d f a f e fa d s a b n'
-d2 = 'a z a f e fa h'
-d3 = 'a z a f e fa h'
-vectorizer = TfidfVectorizer(sublinear_tf=False, stop_words=None, token_pattern="(?u)\\b\\w+\\b", smooth_idf=True, norm='l2')
-tfidf = vectorizer.fit_transform([d1,d2,d3])
-df_tfidf = pd.DataFrame(tfidf.toarray(),columns=vectorizer.get_feature_names(), index=['d1', 'd2', 'd3'])
-print("TFIDF")
-df_tfidf
-
-
-# %%
-# Vectors
-vec_a = [1, 2, 3, 4, 5]
-vec_b = [1, 3, 5, 7, 9]
-vec_c = [1, 2, 3, 7, 5]
-vec_d = [1, 3, 5, 7, 15]
-
-# Dot and norm
-dot = sum(a*b for a, b in zip(vec_a, vec_b))
-norm_a = sum(a*a for a in vec_a) ** 0.5
-norm_b = sum(b*b for b in vec_b) ** 0.5
-
-# Cosine similarity
-cos_sim = dot / (norm_a*norm_b)
-
-# Results
-print('My version:', cos_sim)
-print('Scikit-Learn:', cosine_similarity([vec_a], [vec_b, vec_c, vec_d]))
