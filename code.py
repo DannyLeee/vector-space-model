@@ -5,8 +5,15 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 from tqdm import tqdm
+from datetime import datetime,timezone,timedelta
+
+def timestamp():
+    dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
+    dt2 = dt1.astimezone(timezone(timedelta(hours=8))) # 轉換時區 -> 東八區
+    print(dt2)
 
 #%%
+timestamp()
 doc_path = "./data/docs/"
 query_path = "./data/queries/"
 
@@ -25,13 +32,6 @@ with open('./data/query_list.txt', 'r') as q_list_file:
         q_list += [line]
 
 #%%
-from datetime import datetime,timezone,timedelta
-def timestamp():
-    dt1 = datetime.utcnow().replace(tzinfo=timezone.utc)
-    dt2 = dt1.astimezone(timezone(timedelta(hours=8))) # 轉換時區 -> 東八區
-    print(dt2)
-
-#%%
 def file_iter():
     for name in q_list:
         with open(query_path+name+'.txt') as f:
@@ -48,16 +48,14 @@ for txt in tqdm(file_iter()):
 
 #%%
 # list of dict to dataframe
-timestamp()
 df_tf = pd.DataFrame(list_tf)
 df_q_tf = df_tf[:len(q_list)]
 df_d_tf = df_tf[len(q_list):]
 del df_tf
-timestamp()
 
 #%%
 #idf
-df_idf = pd.DataFrame([1+np.log((len(df_d_tf)+1) / (df_d_tf.count()+1))], index=['idf'])
+df_idf = pd.DataFrame([np.log(1+(len(df_d_tf)+1) / (df_d_tf.count()+1))], index=['idf'])
 
 #%%
 df_q_tf.insert(0, column='txt_id', value=q_list)
@@ -73,37 +71,21 @@ print(df_idf.shape)
 
 #%%
 # np_tfidf
-timestamp()
 np_q_tf = np.array(df_q_tf)
 np_d_tf = np.array(df_d_tf)
 np_idf = np.array(df_idf)
-# np_tfidf = (1+np.log(np_tf)) * np_idf
-np_q_tfidf = np_q_tf * np_idf
-np_d_tfidf = np_d_tf * np_idf
-timestamp()
+np_q_tfidf = (1 + np.ma.log2(np_q_tf)) * np_idf
+np_d_tfidf = (1 + np.ma.log2(np_d_tf)) * np_idf
+del df_idf, np_q_tf, np_d_tf
+
+#%%
+np_q_tfidf = np_q_tfidf.filled(0)
+np_d_tfidf = np_d_tfidf.filled(0)
 
 #%%
 # sim_array
-timestamp()
 sim_array = cosine_similarity(np_q_tfidf, np_d_tfidf)
 sim_array = np.array(sim_array)
-timestamp()
-sim_array
-
-#%%###########################
-vectorizer = TfidfVectorizer(sublinear_tf=True, stop_words=None, token_pattern="(?u)\\b\\w+\\b", smooth_idf=True, norm='l2')
-tfidf = vectorizer.fit_transform(file_iter())    # input string of list
-
-#%%
-np_tfidf[51]
-
-#%%
-tfidf[51].toarray()
-
-#%%
-sim_array = cosine_similarity(tfidf[:len(q_list)], tfidf[len(q_list):])
-sim_array = np.array(sim_array)
-sim_array
 
 #%%!!!!!!!!!!!!!!!!!!!!!!!!!
 with open('result.csv', 'w') as output_file:
@@ -115,4 +97,4 @@ with open('result.csv', 'w') as output_file:
         for _, j in enumerate(sorted):
             output_file.write(d_list[j]+' ')
         output_file.write('\n')
-        # break
+timestamp()
