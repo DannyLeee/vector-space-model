@@ -5,11 +5,11 @@
 
 ## Approach
 * Term frequence use Log Normalization 
-    * $TF = 1 + log_2(tf_{i,j})$
+    * <img src="https://latex.codecogs.com/gif.latex?TF = 1+log_2(tf_{i,j})"/> 
 * Inverse document frequency use Inverse Frequency Smooth
-    * $IDF = ln(1 + \frac{N}{n_i})$
-        * $N$: 1 + total number of documents
-        * $n_i$: 1 + number of documents that contain the word $w_i$
+    * <img src="https://latex.codecogs.com/gif.latex?IDF = ln(1 + \frac{N}{n_i})"/><br>
+        * <img src="https://latex.codecogs.com/gif.latex?N"/>: 1 + total number of documents
+        * <img src="https://latex.codecogs.com/gif.latex?n_i"/>: 1 + number of documents that contain the word <img src="https://latex.codecogs.com/gif.latex?w_i "/>
         * plus one to avoid divide zero
 * TF-IDF for document and query
-    * $TFIDF = TF * IDF$
+    * <img src="https://latex.codecogs.com/gif.latex?TFIDF = TF * IDF"/>
